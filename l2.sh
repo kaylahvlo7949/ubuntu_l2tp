@@ -718,5 +718,3 @@ vpnsetup() {
 }
 
 vpnsetup "$@"
-
-exit "$status"
