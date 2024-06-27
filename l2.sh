@@ -150,9 +150,9 @@ check_client_name() {
 }
 
 check_subnets() {
-  if [ -s /etc/ipsec.conf ] && grep -qs "hwdsl2 VPN script" /etc/sysctl.conf; then
-    L2TP_NET=${VPN_L2TP_NET:-'192.168.42.0/24'}
-    XAUTH_NET=${VPN_XAUTH_NET:-'192.168.43.0/24'}
+  if [ -s /etc/ipsec.conf ] && grep -qs " script" /etc/sysctl.conf; then
+    L2TP_NET=${VPN_L2TP_NET:-'192.168.18.0/24'}
+    XAUTH_NET=${VPN_XAUTH_NET:-'192.168.19.0/24'}
     if ! grep -q "$L2TP_NET" /etc/ipsec.conf \
       || ! grep -q "$XAUTH_NET" /etc/ipsec.conf; then
       echo "Error: The custom VPN subnets specified do not match initial install." >&2
@@ -375,11 +375,11 @@ EOF
 
 create_vpn_config() {
   bigecho "Creating VPN configuration..."
-  L2TP_NET=${VPN_L2TP_NET:-'192.168.42.0/24'}
-  L2TP_LOCAL=${VPN_L2TP_LOCAL:-'192.168.42.1'}
-  L2TP_POOL=${VPN_L2TP_POOL:-'192.168.42.10-192.168.42.250'}
-  XAUTH_NET=${VPN_XAUTH_NET:-'192.168.43.0/24'}
-  XAUTH_POOL=${VPN_XAUTH_POOL:-'192.168.43.10-192.168.43.250'}
+  L2TP_NET=${VPN_L2TP_NET:-'192.168.18.0/24'}
+  L2TP_LOCAL=${VPN_L2TP_LOCAL:-'192.168.18.1'}
+  L2TP_POOL=${VPN_L2TP_POOL:-'192.168.18.10-192.168.18.250'}
+  XAUTH_NET=${VPN_XAUTH_NET:-'192.168.19.0/24'}
+  XAUTH_POOL=${VPN_XAUTH_POOL:-'192.168.19.10-192.168.19.250'}
   DNS_SRV1=${VPN_DNS_SRV1:-'8.8.8.8'}
   DNS_SRV2=${VPN_DNS_SRV2:-'8.8.4.4'}
   DNS_SRVS="\"$DNS_SRV1 $DNS_SRV2\""
@@ -496,11 +496,11 @@ EOF
 
 update_sysctl() {
   bigecho "Updating sysctl settings..."
-  if ! grep -qs "hwdsl2 VPN script" /etc/sysctl.conf; then
+  if ! grep -qs " script" /etc/sysctl.conf; then
     conf_bk "/etc/sysctl.conf"
 cat >> /etc/sysctl.conf <<EOF
 
-# Added by hwdsl2 VPN script
+# Added by  script
 kernel.msgmnb = 65536
 kernel.msgmax = 65536
 
@@ -535,7 +535,7 @@ update_iptables() {
   IPT_FILE=/etc/iptables.rules
   IPT_FILE2=/etc/iptables/rules.v4
   ipt_flag=0
-  if ! grep -qs "hwdsl2 VPN script" "$IPT_FILE"; then
+  if ! grep -qs " script" "$IPT_FILE"; then
     ipt_flag=1
   fi
   ipi='iptables -I INPUT'
@@ -548,9 +548,10 @@ update_iptables() {
     $ipi 1 -p udp --dport 1701 -m policy --dir in --pol none -j DROP
     $ipi 2 -m conntrack --ctstate INVALID -j DROP
     $ipi 3 -m conntrack --ctstate "$res" -j ACCEPT
-    $ipi 4 -p udp -m multiport --dports 500,4500 -j ACCEPT
-    $ipi 5 -p udp --dport 1701 -m policy --dir in --pol ipsec -j ACCEPT
-    $ipi 6 -p udp --dport 1701 -j DROP
+    $ipi 4 -p udp -m multiport --dports 500,4500,1701 -j ACCEPT
+    $ipi 5 -p udp --dport 1701 -j ACCEPT
+    $ipi 6 -p udp --dport 1701 -m policy --dir in --pol ipsec -j ACCEPT
+
     $ipf 1 -m conntrack --ctstate INVALID -j DROP
     $ipf 2 -i "$NET_IFACE" -o ppp+ -m conntrack --ctstate "$res" -j ACCEPT
     $ipf 3 -i ppp+ -o "$NET_IFACE" -j ACCEPT
@@ -561,7 +562,7 @@ update_iptables() {
     iptables -A FORWARD -j DROP
     $ipp -s "$XAUTH_NET" -o "$NET_IFACE" -m policy --dir out --pol none -j MASQUERADE
     $ipp -s "$L2TP_NET" -o "$NET_IFACE" -j MASQUERADE
-    echo "# Modified by hwdsl2 VPN script" > "$IPT_FILE"
+    echo "# Modified by  VPN script" > "$IPT_FILE"
     iptables-save >> "$IPT_FILE"
     if [ -f "$IPT_FILE2" ]; then
       conf_bk "$IPT_FILE2"
@@ -628,7 +629,7 @@ EOF
     update-rc.d "$svc" enable >/dev/null 2>&1
     systemctl enable "$svc" 2>/dev/null
   done
-  if ! grep -qs "hwdsl2 VPN script" /etc/rc.local; then
+  if ! grep -qs " script" /etc/rc.local; then
     if [ -f /etc/rc.local ]; then
       conf_bk "/etc/rc.local"
       sed --follow-symlinks -i '/^exit 0/d' /etc/rc.local
@@ -641,7 +642,7 @@ EOF
     fi
 cat >> /etc/rc.local <<EOF
 
-# Added by hwdsl2 VPN script
+# Added by  script
 (sleep $rc_delay
 service ipsec restart
 service xl2tpd restart
@@ -718,3 +719,4 @@ vpnsetup() {
 }
 
 vpnsetup "$@"
+
